@@ -1,0 +1,119 @@
+model_name: null # checkpoint path or hf id can go here or be specified at commandline
+
+generation:
+  api_base_url: "http://127.0.0.1:8000/v1"
+  api_key: "EMPTY"
+  tokenizer_name: null
+  output_jsonl: null
+  generations_jsonl: null
+
+  hf_dataset: "LiquidAI/antidoom-mix-v1.0"
+  hf_split: "train"
+  hf_source_field: "source"
+  # Leave empty (`[]`) to infer all values from hf_source_field and interleave
+  # them evenly.
+  hf_source_values: []
+  input_jsonl: null
+  prompt_field: "conversations"
+  max_prompts: null
+  target_pairs: 20000
+  target_pair_batch_size: 256
+  threads: 500
+  generation_backend: "vllm"  # vllm | completions | chat
+  request_batch_size: 99999
+  vllm_dtype: "bfloat16"
+  vllm_tensor_parallel_size: null
+  vllm_max_model_len: 6000
+  vllm_gpu_memory_utilization: 0.85
+  vllm_enable_prefix_caching: false
+  vllm_trust_remote_code: true
+  vllm_kwargs: {}
+
+  prompt_template: |-
+    {prompt}
+
+    Think through the problem step by step, then respond with your final answer as "Answer: <your answer>".
+  system_prompt: ""
+
+  # If null, generation derives this from vllm_max_model_len - max_new_tokens
+  # when vllm_max_model_len is set.
+  max_prompt_tokens: 2000
+  max_new_tokens: 4000
+  temperature: 0.1
+  temperatures: null  # optional list to sweep, e.g. [0.1, 0.7]; supersedes `temperature` if set
+  top_p: 1.0
+  top_k: 50
+  min_p: 0.01
+  top_logprobs: 20
+  timeout: 1800
+  stop: []
+
+  # Thresholds for the in-output loop detector that triggers FTPO pair extraction.
+  repetition:
+    min_repeats: 4
+    max_period: 1024
+    min_period: 1
+    min_total_repeated: 60
+    sample_len: 16
+    sample_interval: 128
+
+  # Sampling settings for the chosen-token alternatives at the rejection point.
+  chosen_max_tokens: 20
+  chosen_top_k: 50
+  chosen_min_p: null
+  chosen_min_decoded_chars: 1
+  chosen_require_alnum: false
+  chosen_skip_raw_token_substrings: []
+  skip_decoded_shorter_than: null
+  # Skip prompts whose source field matches any of these substrings (case-insensitive).
+  skip_eval_key_substrings: ["bfcl", "tau", "browse", "search"]
+
+train:
+  # If null, the default pipeline trains on generation.output_jsonl after
+  # generating or confirming target_pairs already exist.
+  dataset_jsonl: null
+  output_dir: "runs/ftpo_lora"
+  merged_output_dir: "runs/ftpo_merged"
+  auto_merged_output_name: true
+  merge_lora: true
+  max_seq_length: 6000
+  batch_size: 4
+  gradient_accumulation_steps: 4
+  num_epochs: 1
+  learning_rate: 0.000015
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+  seed: 3407
+  max_train_examples: 12000
+
+  # Flatten over-represented rejected/chosen tokens. 0 = keep pool proportions;
+  # higher values pull above-median counts toward the median more aggressively.
+  rejected_regularisation_strength: 0.3
+  chosen_regularisation_strength: 0.5
+  # Optional source-balancing pass run after rejected normalisation; only
+  # downsamples (output count drops below max_train_examples when culling kicks in).
+  #   off    — leave source mix as the rejected-normalisation pass produced it
+  #   sqrt   — soft cap each source near sqrt-proportional share
+  #   equal  — hard cap each source near equal share
+  source_balance_mode: "off"
+  min_chosen_tokens: 1   # drop rows with fewer chosen alternatives than this
+  filter_rejected_stop_words: false
+
+  lora_r: 256
+  lora_alpha: 128
+  lora_dropout: 0.0
+  lora_ensure_weight_tying: false
+  # If true, only the last `n_layers_unfrozen` transformer layers train; otherwise all layers train.
+  freeze_early_layers: false
+  n_layers_unfrozen: 5
+  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head"]
+  load_in_4bit: false
+  bf16: true
+
+  lambda_mse_target: 0.05
+  tau_mse_target: 0.5
+  lambda_mse: 0.4
+  clip_epsilon_logits: 2.0
+  early_stopping_chosen_win: 0.4
+  # NVIDIA default; on AMD/ROCm use adamw_torch instead (see configs/default_amd.yaml).
+  optim: paged_adamw_32bit

@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Project outputs
+runs/
+*.log
+tmp_remote/
+datasets/raw/*
+!datasets/raw/README.md
+datasets/processed/*.jsonl
+datasets/processed/*.json
+datasets/processed/**/*.jsonl
+datasets/processed/**/*.json
+analysis_artifacts
+.DS_Store
