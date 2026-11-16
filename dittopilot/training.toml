@@ -13,6 +13,7 @@ command = """
 set -euo pipefail
 RUN="$(dirname '{{output_checkpoint_path}}')/antidoom-{{model_op_run_id}}"
 mkdir -p "$RUN"
+if [ -n '{{pairs_from}}' ]; then cp '{{pairs_from}}/iter_0_ftpo_pairs.jsonl' "$RUN/"; fi
 for d in {{input_dataset_paths}}; do cat "$d/prompt_pool.jsonl"; done | shuf --random-source=<(yes) > "$RUN/pool.jsonl"
 wc -l "$RUN/pool.jsonl"
 G="${HIP_VISIBLE_DEVICES:-${ROCR_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}}"
@@ -56,3 +57,8 @@ description = "FTPO pairs to collect before training; mining also stops when the
 type = "str"
 default = "12000"
 description = "Cap on training rows; keep at or below ~70% of the pairs collected."
+
+[antidoom-ftpo.args.pairs_from]
+type = "str"
+default = ""
+description = "Run directory of an earlier antidoom-ftpo run on the same model and pools; its FTPO pairs are reused, so with target_pairs at or below their count mining is skipped and only training runs."
