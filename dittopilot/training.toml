@@ -1,6 +1,7 @@
 # dittopilot trainer for antidoom: mine FTPO pairs from the input model's own looping generations over the
 # input prompt pools, train a LoRA on them, and merge it into a full HF model at {{output_checkpoint_path}}.
-# It runs inside the cluster's vLLM ROCm image (vllm/vllm-openai-rocm:v0.33.0-rocm72) with antidoom installed on top.
+# It runs inside the cluster's vLLM ROCm image (vllm/vllm-openai-rocm:v0.33.0-rocm72) with antidoom installed on top;
+# trl/peft/datasets are pinned to uv.lock (newer trl rejects antidoom's FTPODataset).
 
 [antidoom-ftpo]
 mode = "dpo"
@@ -17,10 +18,10 @@ wc -l "$RUN/pool.jsonl"
 G="${HIP_VISIBLE_DEVICES:-${ROCR_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}}"
 env -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES docker run --rm --network=host --ipc=host --shm-size 64G \
   --group-add video --security-opt seccomp=unconfined \
-  -e HIP_VISIBLE_DEVICES="$G" -e HF_HOME -e HF_TOKEN -e WANDB_API_KEY \
+  -e HIP_VISIBLE_DEVICES="$G" -e PYTHONDONTWRITEBYTECODE=1 -e HF_HOME -e HF_TOKEN -e WANDB_API_KEY \
   -v /home/shared_tw:/home/shared_tw -v "$PWD":"$PWD" -w "$PWD" \
   --entrypoint bash vllm/vllm-openai-rocm:v0.33.0-rocm72 -c "
-    pip install -q -e . --no-deps && pip install -q peft trl datasets tensorboard &&
+    pip install -q -e . --no-deps && pip install -q trl==1.2.0 peft==0.19.1 datasets==4.8.4 tensorboard &&
     antidoom -c {{config}} -r '$RUN' \
       --model-name '{{checkpoint_path}}' \
       --input-jsonl '$RUN/pool.jsonl' \
@@ -28,7 +29,7 @@ env -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES docker run --rm --network=hos
       --target-pairs {{target_pairs}} \
       --max-train-examples {{max_train_examples}} \
       --merged-output-dir '{{output_checkpoint_path}}';
-    rc=\\$?; chown -R $(id -u):$(id -g) '$RUN' '{{output_checkpoint_path}}' 2>/dev/null; exit \\$rc"
+    rc=\\$?; chown -R $(id -u):$(id -g) '$RUN' '{{output_checkpoint_path}}' "$PWD" 2>/dev/null; exit \\$rc"
 """
 gpus = 8
 cpus = 112
