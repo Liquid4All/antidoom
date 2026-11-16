@@ -1,0 +1,49 @@
+# dittopilot trainer for antidoom: mine FTPO pairs from the input model's own looping generations over the
+# input prompt pools, train a LoRA on them, and merge it into a full HF model at {{output_checkpoint_path}}.
+# Install is dittopilot/setup.sh (ROCm venv), so every command runs `uv run --no-sync`.
+
+[antidoom-ftpo]
+mode = "dpo"
+modality = "text"
+description = "antidoom FTPO: mine loop-onset preference pairs from the model's own generations over the input prompt pools (JSONL with a `conversations` field, one prompt_pool.jsonl per dataset dir), train a LoRA, merge to a full HF model."
+max_input_datasets = "N"
+tasks_per_node = 1
+command = """
+set -euo pipefail
+RUN="$(dirname '{{output_checkpoint_path}}')/antidoom-{{model_op_run_id}}"
+mkdir -p "$RUN"
+for d in {{dataset_paths}}; do cat "$d/prompt_pool.jsonl"; done | shuf --random-source=<(yes) > "$RUN/pool.jsonl"
+wc -l "$RUN/pool.jsonl"
+uv run --no-sync antidoom -c {{config}} -r "$RUN" \
+  --model-name '{{checkpoint_path}}' \
+  --input-jsonl "$RUN/pool.jsonl" \
+  --temp {{temperature}} \
+  --target-pairs {{target_pairs}} \
+  --max-train-examples {{max_train_examples}} \
+  --merged-output-dir '{{output_checkpoint_path}}'
+"""
+gpus = 8
+cpus = 112
+nodes = 1
+needs_ray = false
+modules = []
+
+[antidoom-ftpo.args.config]
+type = "str"
+default = "configs/denso_smarthome_jp_amd.yaml"
+description = "antidoom config file in this repo."
+
+[antidoom-ftpo.args.temperature]
+type = "str"
+default = "0.01"
+description = "Generation temperature for pair mining."
+
+[antidoom-ftpo.args.target_pairs]
+type = "str"
+default = "20000"
+description = "FTPO pairs to collect before training; mining also stops when the pool runs out."
+
+[antidoom-ftpo.args.max_train_examples]
+type = "str"
+default = "12000"
+description = "Cap on training rows; keep at or below ~70% of the pairs collected."
