@@ -28,7 +28,7 @@ env -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES docker run --rm --network=hos
       --target-pairs {{target_pairs}} \
       --max-train-examples {{max_train_examples}} \
       --merged-output-dir '{{output_checkpoint_path}}';
-    rc=\$?; chown -R $(id -u):$(id -g) '$RUN' '{{output_checkpoint_path}}' 2>/dev/null; exit \$rc"
+    rc=\\$?; chown -R $(id -u):$(id -g) '$RUN' '{{output_checkpoint_path}}' 2>/dev/null; exit \\$rc"
 """
 gpus = 8
 cpus = 112
