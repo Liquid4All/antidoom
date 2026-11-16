@@ -12,7 +12,7 @@ command = """
 set -euo pipefail
 RUN="$(dirname '{{output_checkpoint_path}}')/antidoom-{{model_op_run_id}}"
 mkdir -p "$RUN"
-for d in {{dataset_paths}}; do cat "$d/prompt_pool.jsonl"; done | shuf --random-source=<(yes) > "$RUN/pool.jsonl"
+for d in {{input_dataset_paths}}; do cat "$d/prompt_pool.jsonl"; done | shuf --random-source=<(yes) > "$RUN/pool.jsonl"
 wc -l "$RUN/pool.jsonl"
 uv run --no-sync antidoom -c {{config}} -r "$RUN" \
   --model-name '{{checkpoint_path}}' \
